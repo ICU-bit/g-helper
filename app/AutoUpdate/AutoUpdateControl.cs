@@ -13,9 +13,8 @@ namespace GHelper.AutoUpdate
         SettingsForm settings;
 
         public string versionUrl = "https://github.com/seerge/g-helper/releases";
-        public bool update = false;
 
-        static long lastUpdate;
+        static bool checking;
 
         public AutoUpdateControl(SettingsForm settingsForm)
         {
@@ -26,29 +25,9 @@ namespace GHelper.AutoUpdate
 
         public void CheckForUpdates()
         {
-            // Run update once per 12 hours
-            if (Math.Abs(DateTimeOffset.Now.ToUnixTimeSeconds() - lastUpdate) < 43200) return;
-            lastUpdate = DateTimeOffset.Now.ToUnixTimeSeconds();
-
-            Task.Run(async () =>
-            {
-                await Task.Delay(TimeSpan.FromSeconds(1));
-                CheckForUpdatesAsync();
-            });
-        }
-
-        public void Update()
-        {
-            if (update)
-            {
-                Task.Run(() =>
-                {
-                    CheckForUpdatesAsync(true);
-                });
-            } else
-            {
-                LoadReleases();
-            }
+            if (checking) return;
+            checking = true;
+            CheckForUpdatesAsync();
         }
 
         public void LoadReleases()
@@ -63,13 +42,14 @@ namespace GHelper.AutoUpdate
             }
         }
 
-        async void CheckForUpdatesAsync(bool force = false)
+        async void CheckForUpdatesAsync()
         {
-
-            if (AppConfig.Is("skip_updates")) return;
-
             try
             {
+                if (AppConfig.Is("skip_updates")) return;
+
+                string[] args = Environment.GetCommandLineArgs();
+                bool autoUpdate = args.Length > 1 && args[1] == "autoupdate";
 
                 using (var httpClient = new HttpClient())
                 {
@@ -97,11 +77,9 @@ namespace GHelper.AutoUpdate
                     if (gitVersion.CompareTo(appVersion) > 0)
                     {
                         versionUrl = url;
-                        update = true;
                         settings.SetVersionLabel(Properties.Strings.DownloadUpdate + $": {appVersion.Major}.{appVersion.Minor}.{appVersion.Build} → {tag}", true);
 
-                        string[] args = Environment.GetCommandLineArgs();
-                        if (force || args.Length > 1 && args[1] == "autoupdate")
+                        if (autoUpdate)
                         {
                             AutoUpdate(url);
                             return;
@@ -115,26 +93,32 @@ namespace GHelper.AutoUpdate
                             {
                                 dialogResult = MessageBox.Show(settings, Properties.Strings.DownloadUpdate + ": G-Helper " + tag + "?", "Update", MessageBoxButtons.YesNo);
                             });
-                            
+
                             if (dialogResult == DialogResult.Yes)
                                 AutoUpdate(url);
                             else
                                 AppConfig.Set("skip_version", tag);
                         }
-
                     }
                     else
                     {
                         Logger.WriteLine($"Latest version {appVersion}");
+                        if (!autoUpdate)
+                            settings.Invoke((System.Windows.Forms.MethodInvoker)delegate
+                            {
+                                MessageBox.Show(settings, Properties.Strings.NoNewUpdates, Properties.Strings.Updates, MessageBoxButtons.OK);
+                            });
                     }
-
                 }
             }
             catch (Exception ex)
             {
                 Logger.WriteLine("Failed to check for updates:" + ex.Message);
             }
-
+            finally
+            {
+                checking = false;
+            }
         }
 
         public static string EscapeString(string input)

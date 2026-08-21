@@ -49,7 +49,6 @@ namespace GHelper
             labelBatteryTitle = new Label();
             panelFooter = new Panel();
             tableButtons = new TableLayoutPanel();
-            buttonDonate = new RBadgeButton();
             buttonQuit = new RButton();
             buttonUpdates = new RButton();
             checkStartup = new CheckBox();
@@ -419,14 +418,11 @@ namespace GHelper
             // tableButtons
             // 
             tableButtons.AutoSize = true;
-            tableButtons.ColumnCount = 3;
-            tableButtons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
-            tableButtons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
-            tableButtons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
-            tableButtons.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 27F));
-            tableButtons.Controls.Add(buttonDonate, 0, 0);
-            tableButtons.Controls.Add(buttonQuit, 2, 0);
-            tableButtons.Controls.Add(buttonUpdates, 1, 0);
+            tableButtons.ColumnCount = 2;
+            tableButtons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            tableButtons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            tableButtons.Controls.Add(buttonQuit, 1, 0);
+            tableButtons.Controls.Add(buttonUpdates, 0, 0);
             tableButtons.Dock = DockStyle.Top;
             tableButtons.Location = new Point(20, 10);
             tableButtons.Margin = new Padding(8, 4, 8, 4);
@@ -435,27 +431,6 @@ namespace GHelper
             tableButtons.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             tableButtons.Size = new Size(787, 58);
             tableButtons.TabIndex = 25;
-            // 
-            // buttonDonate
-            // 
-            buttonDonate.Activated = false;
-            buttonDonate.BackColor = SystemColors.ControlLight;
-            buttonDonate.Badge = 0;
-            buttonDonate.BorderColor = Color.Transparent;
-            buttonDonate.BorderRadius = 2;
-            buttonDonate.Dock = DockStyle.Top;
-            buttonDonate.FlatStyle = FlatStyle.Flat;
-            buttonDonate.Image = Properties.Resources.icons8_heart_32;
-            buttonDonate.ImageAlign = ContentAlignment.MiddleRight;
-            buttonDonate.Location = new Point(4, 5);
-            buttonDonate.Margin = new Padding(4, 5, 4, 5);
-            buttonDonate.Name = "buttonDonate";
-            buttonDonate.Secondary = true;
-            buttonDonate.Size = new Size(254, 48);
-            buttonDonate.TabIndex = 3;
-            buttonDonate.Text = "&Donate";
-            buttonDonate.TextImageRelation = TextImageRelation.ImageBeforeText;
-            buttonDonate.UseVisualStyleBackColor = false;
             // 
             // buttonQuit
             // 
@@ -466,11 +441,11 @@ namespace GHelper
             buttonQuit.Dock = DockStyle.Top;
             buttonQuit.FlatStyle = FlatStyle.Flat;
             buttonQuit.Image = Properties.Resources.icons8_quit_32;
-            buttonQuit.Location = new Point(528, 5);
+            buttonQuit.Location = new Point(398, 5);
             buttonQuit.Margin = new Padding(4, 5, 4, 5);
             buttonQuit.Name = "buttonQuit";
             buttonQuit.Secondary = true;
-            buttonQuit.Size = new Size(255, 48);
+            buttonQuit.Size = new Size(385, 48);
             buttonQuit.TabIndex = 2;
             buttonQuit.Text = "&Quit";
             buttonQuit.TextAlign = ContentAlignment.MiddleRight;
@@ -487,11 +462,11 @@ namespace GHelper
             buttonUpdates.FlatStyle = FlatStyle.Flat;
             buttonUpdates.Image = Properties.Resources.icons8_software_32_white;
             buttonUpdates.ImageAlign = ContentAlignment.MiddleRight;
-            buttonUpdates.Location = new Point(266, 5);
+            buttonUpdates.Location = new Point(4, 5);
             buttonUpdates.Margin = new Padding(4, 5, 4, 5);
             buttonUpdates.Name = "buttonUpdates";
             buttonUpdates.Secondary = true;
-            buttonUpdates.Size = new Size(254, 48);
+            buttonUpdates.Size = new Size(385, 48);
             buttonUpdates.TabIndex = 1;
             buttonUpdates.Text = "&Updates";
             buttonUpdates.TextImageRelation = TextImageRelation.ImageBeforeText;
@@ -2234,7 +2209,6 @@ namespace GHelper
         private Label labelBacklight;
         private Panel panelVersion;
         private Label labelVersion;
-        private RBadgeButton buttonDonate;
         private RButton buttonEnergySaver;
         private RButton buttonAmdOled;
         private RButton buttonArmoury;

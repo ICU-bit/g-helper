@@ -23,8 +23,6 @@ namespace GHelper
     {
         ContextMenuStrip contextMenuStrip = new CustomContextMenu();
         ToolStripMenuItem menuEco, menuStandard, menuUltimate, menuOptimized;
-        DonateControl donateControl;
-
         public GPUModeControl gpuControl;
         public AllyControl allyControl;
         AutoUpdateControl updateControl;
@@ -98,7 +96,6 @@ namespace GHelper
             buttonMatrix.Text = "Matrix";
             buttonQuit.Text = Properties.Strings.Quit;
             buttonUpdates.Text = Properties.Strings.Updates;
-            buttonDonate.Text = Properties.Strings.Donate;
 
             buttonController.Text = Properties.Strings.Controller;
             labelAlly.Text = Properties.Strings.AllyController;
@@ -286,9 +283,6 @@ namespace GHelper
 
             labelVisual.Click += LabelVisual_Click;
             labelCharge.Click += LabelCharge_Click;
-
-            donateControl = new DonateControl(this, buttonDonate);
-            donateControl.Init();
 
             labelBacklight.ForeColor = colorStandard;
             labelBacklight.Click += LabelBacklight_Click;
@@ -701,7 +695,8 @@ namespace GHelper
             if (this.Visible)
             {
                 Task.Run((Action)RefreshPeripheralsBattery);
-                updateControl.CheckForUpdates();
+                if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "autoupdate")
+                    updateControl.CheckForUpdates();
             }
         }
 
@@ -936,8 +931,6 @@ namespace GHelper
                 contextMenuStrip.BackColor = this.BackColor;
                 contextMenuStrip.ForeColor = this.ForeColor;
             }
-
-            donateControl?.ApplyTheme();
         }
 
         private void ButtonXGM_Click(object? sender, EventArgs e)
@@ -964,7 +957,7 @@ namespace GHelper
 
         private void LabelVersion_Click(object? sender, EventArgs e)
         {
-            updateControl.Update();
+            updateControl.CheckForUpdates();
         }
 
 
