@@ -204,9 +204,7 @@ namespace GHelper
                     settingsForm.FansToggle(1);
                     break;
                 case "services":
-                    settingsForm.extraForm = new Extra();
-                    settingsForm.extraForm.Show();
-                    settingsForm.extraForm.ServiesToggle();
+                    settingsForm.ServicesToggle();
                     break;
                 case "uv":
                     Startup.ReScheduleAdmin();
@@ -293,19 +291,22 @@ namespace GHelper
                         lastTheme = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                     }
 
-                    if (settingsForm.fansForm is not null && settingsForm.fansForm.Text != "")
+                    if (settingsForm.IsFormAlive(settingsForm.fansForm))
                         settingsForm.fansForm.InitTheme();
 
-                    if (settingsForm.extraForm is not null && settingsForm.extraForm.Text != "")
+                    if (settingsForm.IsFormAlive(settingsForm.extraForm))
                         settingsForm.extraForm.InitTheme();
 
-                    if (settingsForm.updatesForm is not null && settingsForm.updatesForm.Text != "")
+                    if (settingsForm.IsFormAlive(settingsForm.updatesForm))
                         settingsForm.updatesForm.InitTheme();
 
-                    if (settingsForm.matrixForm is not null && settingsForm.matrixForm.Text != "")
+                    if (settingsForm.IsFormAlive(settingsForm.matrixForm))
                         settingsForm.matrixForm.InitTheme();
 
-                    if (settingsForm.handheldForm is not null && settingsForm.handheldForm.Text != "")
+                    if (settingsForm.IsFormAlive(settingsForm.slashForm))
+                        settingsForm.slashForm.InitTheme();
+
+                    if (settingsForm.IsFormAlive(settingsForm.handheldForm))
                         settingsForm.handheldForm.InitTheme();
 
                     break;

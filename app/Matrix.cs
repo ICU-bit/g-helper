@@ -192,7 +192,7 @@ namespace GHelper
 
             panelMain.PerformLayout();
             ClientSize = new Size(ClientSize.Width, panelMain.Height + panelPower.Height + Padding.Vertical);
-            FormPosition();
+            Program.settingsForm.PositionOwnedForm(this);
 
             VisualisePicture();
         }
@@ -648,21 +648,6 @@ namespace GHelper
         {
             matrixControl.OpenMatrixPicture();
             VisualiseMode();
-        }
-
-        public void FormPosition()
-        {
-            if (Height > Program.settingsForm.Height)
-            {
-                Top = Program.settingsForm.Top + Program.settingsForm.Height - Height;
-            }
-            else
-            {
-                Height = Program.settingsForm.Height;
-                Top = Program.settingsForm.Top;
-            }
-
-            Left = Program.settingsForm.Left - Width - 5;
         }
 
     }

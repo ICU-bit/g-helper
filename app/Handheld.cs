@@ -358,9 +358,7 @@ namespace GHelper
 
         private void Handheld_Shown(object? sender, EventArgs e)
         {
-            Height = Program.settingsForm.Height;
-            Top = Program.settingsForm.Top;
-            Left = Program.settingsForm.Left - Width - 5;
+            Program.settingsForm.PositionOwnedForm(this);
         }
 
             private sealed class BindingItem

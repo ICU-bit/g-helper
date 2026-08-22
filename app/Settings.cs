@@ -536,10 +536,10 @@ namespace GHelper
 
         private void ButtonHandheld_Click(object? sender, EventArgs e)
         {
-            if (handheldForm == null || handheldForm.Text == "")
+            if (!IsFormAlive(handheldForm))
             {
                 handheldForm = new Handheld();
-                AddOwnedForm(handheldForm);
+                RegisterOwnedForm(handheldForm);
             }
 
             if (handheldForm.Visible)
@@ -548,7 +548,6 @@ namespace GHelper
             }
             else
             {
-                //handheldForm.FormPosition();
                 handheldForm.Show();
             }
         }
@@ -662,6 +661,43 @@ namespace GHelper
             Top = Screen.FromControl(this).WorkingArea.Height - 10 - Height;
         }
 
+        public void PositionOwnedForm(Form form)
+        {
+            if (form is null || form.IsDisposed) return;
+
+            Rectangle workArea = Screen.FromControl(this).WorkingArea;
+            int left = Left - form.Width - 5;
+            if (left < workArea.Left)
+                left = Left + Width + 5;
+
+            int top = form.Height > Height ? Top + Height - form.Height : Top;
+            form.Left = Math.Clamp(left, workArea.Left, Math.Max(workArea.Left, workArea.Right - form.Width));
+            form.Top = Math.Clamp(top, workArea.Top, Math.Max(workArea.Top, workArea.Bottom - form.Height));
+        }
+
+        public bool IsFormAlive(Form? form)
+        {
+            return form is not null && !form.IsDisposed && !form.Disposing;
+        }
+
+        private void RegisterOwnedForm(Form form)
+        {
+            AddOwnedForm(form);
+            form.FormClosed += OwnedForm_FormClosed;
+        }
+
+        private void OwnedForm_FormClosed(object? sender, FormClosedEventArgs e)
+        {
+            if (ReferenceEquals(sender, fansForm)) fansForm = null;
+            if (ReferenceEquals(sender, extraForm)) extraForm = null;
+            if (ReferenceEquals(sender, updatesForm)) updatesForm = null;
+            if (ReferenceEquals(sender, matrixForm)) matrixForm = null;
+            if (ReferenceEquals(sender, slashForm)) slashForm = null;
+            if (ReferenceEquals(sender, handheldForm)) handheldForm = null;
+            if (ReferenceEquals(sender, mouseSettings)) mouseSettings = null;
+            if (ReferenceEquals(sender, keyboardSettings)) keyboardSettings = null;
+        }
+
         private void PanelBattery_MouseEnter(object? sender, EventArgs e)
         {
             batteryMouseOver = true;
@@ -707,10 +743,10 @@ namespace GHelper
 
         private void ButtonUpdates_Click(object? sender, EventArgs e)
         {
-            if (updatesForm == null || updatesForm.Text == "")
+            if (!IsFormAlive(updatesForm))
             {
                 updatesForm = new Updates();
-                AddOwnedForm(updatesForm);
+                RegisterOwnedForm(updatesForm);
             }
 
             if (updatesForm.Visible)
@@ -725,7 +761,7 @@ namespace GHelper
 
         public void VisualiseMatrixPicture(string image)
         {
-            if (matrixForm == null || matrixForm.Text == "") return;
+            if (!IsFormAlive(matrixForm)) return;
             matrixForm.VisualiseMatrix(image);
         }
 
@@ -1052,10 +1088,10 @@ namespace GHelper
 
             if (matrixControl.IsSlash)
             {
-                if (slashForm == null || slashForm.Text == "")
+                if (!IsFormAlive(slashForm))
                 {
                     slashForm = new Slash();
-                    AddOwnedForm(slashForm);
+                    RegisterOwnedForm(slashForm);
                 }
 
                 if (slashForm.Visible)
@@ -1064,17 +1100,17 @@ namespace GHelper
                 }
                 else
                 {
-                    slashForm.FormPosition();
+                    PositionOwnedForm(slashForm);
                     slashForm.Show();
                 }
 
                 return;
             }
 
-            if (matrixForm == null || matrixForm.Text == "")
+            if (!IsFormAlive(matrixForm))
             {
                 matrixForm = new Matrix();
-                AddOwnedForm(matrixForm);
+                RegisterOwnedForm(matrixForm);
             }
 
             if (matrixForm.Visible)
@@ -1083,7 +1119,7 @@ namespace GHelper
             }
             else
             {
-                matrixForm.FormPosition();
+                PositionOwnedForm(matrixForm);
                 matrixForm.Show();
             }
 
@@ -1101,13 +1137,13 @@ namespace GHelper
             VisualiseMatrixRunning(mode);
             AppConfig.Set("matrix_running", mode);
             matrixControl.SetDevice();
-            if (!matrixControl.IsSlash && matrixForm != null && matrixForm.Text != "") matrixForm.VisualiseMode();
+            if (!matrixControl.IsSlash && IsFormAlive(matrixForm)) matrixForm.VisualiseMode();
         }
 
         private void ComboMatrixRunning_SelectedValueChanged(object? sender, EventArgs e)
         {
             SetMatrixRunning(comboMatrixRunning.SelectedIndex);
-            if (!matrixControl.IsSlash && comboMatrixRunning.SelectedIndex == (int)MatrixMode.Text && (matrixForm == null || !matrixForm.Visible)) ButtonMatrix_Click(sender, e);
+            if (!matrixControl.IsSlash && comboMatrixRunning.SelectedIndex == (int)MatrixMode.Text && (!IsFormAlive(matrixForm) || !matrixForm.Visible)) ButtonMatrix_Click(sender, e);
         }
 
 
@@ -1129,42 +1165,55 @@ namespace GHelper
             SetColorPicker("aura_color2", Aura.Color2);
         }
 
-        private void ButtonKeyboard_Click(object? sender, EventArgs e)
+        private Extra GetExtraForm()
         {
-            if (extraForm == null || extraForm.Text == "")
+            if (!IsFormAlive(extraForm))
             {
                 extraForm = new Extra();
-                AddOwnedForm(extraForm);
+                RegisterOwnedForm(extraForm);
             }
 
-            if (extraForm.Visible)
+            return extraForm;
+        }
+
+        public void ServicesToggle()
+        {
+            Extra form = GetExtraForm();
+            if (!form.Visible) form.Show();
+            form.ServiesToggle();
+        }
+
+        private void ButtonKeyboard_Click(object? sender, EventArgs e)
+        {
+            Extra form = GetExtraForm();
+            if (form.Visible)
             {
-                extraForm.Close();
+                form.Close();
             }
             else
             {
-                extraForm.Show();
+                form.Show();
             }
         }
 
         public void FansInit()
         {
-            if (fansForm == null || fansForm.Text == "") return;
+            if (!IsFormAlive(fansForm)) return;
             Invoke(fansForm.InitAll);
         }
 
         public void GPUInit()
         {
-            if (fansForm == null || fansForm.Text == "") return;
+            if (!IsFormAlive(fansForm)) return;
             Invoke(fansForm.InitGPU);
         }
 
         public void FansToggle(int index = 0)
         {
-            if (fansForm == null || fansForm.Text == "")
+            if (!IsFormAlive(fansForm))
             {
                 fansForm = new Fans();
-                AddOwnedForm(fansForm);
+                RegisterOwnedForm(fansForm);
             }
 
             if (fansForm.Visible)
@@ -1173,7 +1222,7 @@ namespace GHelper
             }
             else
             {
-                fansForm.FormPosition();
+                PositionOwnedForm(fansForm);
                 fansForm.Show();
                 fansForm.ToggleNavigation(index);
             }
@@ -1527,14 +1576,14 @@ namespace GHelper
         public void HideAll()
         {
             this.Hide();
-            if (fansForm != null && fansForm.Text != "") fansForm.Close();
-            if (extraForm != null && extraForm.Text != "") extraForm.Close();
-            if (updatesForm != null && updatesForm.Text != "") updatesForm.Close();
-            if (matrixForm != null && matrixForm.Text != "") matrixForm.Close();
-            if (slashForm != null && slashForm.Text != "") slashForm.Close();
-            if (handheldForm != null && handheldForm.Text != "") handheldForm.Close();
-            if (mouseSettings != null && mouseSettings.Text != "") mouseSettings.Close();
-            if (keyboardSettings != null && keyboardSettings.Text != "") keyboardSettings.Close();
+            if (IsFormAlive(fansForm)) fansForm.Close();
+            if (IsFormAlive(extraForm)) extraForm.Close();
+            if (IsFormAlive(updatesForm)) updatesForm.Close();
+            if (IsFormAlive(matrixForm)) matrixForm.Close();
+            if (IsFormAlive(slashForm)) slashForm.Close();
+            if (IsFormAlive(handheldForm)) handheldForm.Close();
+            if (IsFormAlive(mouseSettings)) mouseSettings.Close();
+            if (IsFormAlive(keyboardSettings)) keyboardSettings.Close();
             MemoryHelper.TrimAfter();
         }
 
@@ -1554,12 +1603,14 @@ namespace GHelper
         /// <returns>Focus state</returns>
         public bool HasAnyFocus(bool lostFocusCheck = false)
         {
-            return (fansForm != null && fansForm.ContainsFocus) ||
-                   (extraForm != null && extraForm.ContainsFocus) ||
-                   (updatesForm != null && updatesForm.ContainsFocus) ||
-                   (matrixForm != null && matrixForm.ContainsFocus) ||
-                   (slashForm != null && slashForm.ContainsFocus) ||
-                   (handheldForm != null && handheldForm.ContainsFocus) ||
+            return (IsFormAlive(fansForm) && fansForm.ContainsFocus) ||
+                   (IsFormAlive(extraForm) && extraForm.ContainsFocus) ||
+                   (IsFormAlive(updatesForm) && updatesForm.ContainsFocus) ||
+                   (IsFormAlive(matrixForm) && matrixForm.ContainsFocus) ||
+                   (IsFormAlive(slashForm) && slashForm.ContainsFocus) ||
+                   (IsFormAlive(handheldForm) && handheldForm.ContainsFocus) ||
+                   (IsFormAlive(mouseSettings) && mouseSettings.ContainsFocus) ||
+                   (IsFormAlive(keyboardSettings) && keyboardSettings.ContainsFocus) ||
                    this.ContainsFocus ||
                    (lostFocusCheck && Math.Abs(DateTimeOffset.Now.ToUnixTimeMilliseconds() - lastLostFocus) < 300);
         }
@@ -1668,7 +1719,7 @@ namespace GHelper
 
         public void LabelFansResult(string text)
         {
-            if (fansForm != null && !fansForm.IsDisposed && fansForm.Text != "")
+            if (IsFormAlive(fansForm))
                 fansForm.LabelFansResult(text);
         }
 
@@ -2179,10 +2230,10 @@ namespace GHelper
                     return;
                 }
                 mouseSettings = new AsusMouseSettings(am);
+                RegisterOwnedForm(mouseSettings);
                 mouseSettings.TopMost = AppConfig.Is("topmost");
-                mouseSettings.FormClosed += MouseSettings_FormClosed;
                 mouseSettings.Disposed += MouseSettings_Disposed;
-                if (!mouseSettings.IsDisposed)
+                if (IsFormAlive(mouseSettings))
                 {
                     mouseSettings.Show();
                 }
@@ -2208,10 +2259,10 @@ namespace GHelper
         {
             AsusKeyboardSettings.RequestReopen = ShowKeyboardSettings;
             keyboardSettings = new AsusKeyboardSettings(kb);
+            RegisterOwnedForm(keyboardSettings);
             keyboardSettings.TopMost = AppConfig.Is("topmost");
-            keyboardSettings.FormClosed += KeyboardSettings_FormClosed;
             keyboardSettings.Disposed += KeyboardSettings_Disposed;
-            if (!keyboardSettings.IsDisposed)
+            if (IsFormAlive(keyboardSettings))
             {
                 keyboardSettings.Show();
             }
@@ -2226,17 +2277,7 @@ namespace GHelper
             keyboardSettings = null;
         }
 
-        private void KeyboardSettings_FormClosed(object? sender, FormClosedEventArgs e)
-        {
-            keyboardSettings = null;
-        }
-
         private void MouseSettings_Disposed(object? sender, EventArgs e)
-        {
-            mouseSettings = null;
-        }
-
-        private void MouseSettings_FormClosed(object? sender, FormClosedEventArgs e)
         {
             mouseSettings = null;
         }

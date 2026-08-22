@@ -1163,7 +1163,7 @@ namespace GHelper.Input
                 AppConfig.Set("keyboard_brightness", backlight);
 
             var extraForm = Program.settingsForm.extraForm;
-            if (extraForm != null && extraForm.Text != "") extraForm.VisualiseBacklight(backlight);
+            if (Program.settingsForm.IsFormAlive(extraForm)) extraForm.VisualiseBacklight(backlight);
 
             if (force || !AsusService.IsAsusOptimizationRunning())
             {

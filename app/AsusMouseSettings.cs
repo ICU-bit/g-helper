@@ -1356,18 +1356,7 @@ namespace GHelper
 
         private void AsusMouseSettings_Shown(object? sender, EventArgs e)
         {
-
-            if (Height > Program.settingsForm.Height)
-            {
-                Top = Program.settingsForm.Top + Program.settingsForm.Height - Height;
-            }
-            else
-            {
-                Top = Program.settingsForm.Top;
-            }
-
-            Left = Program.settingsForm.Left - Width - 5;
-
+            Program.settingsForm.PositionOwnedForm(this);
 
             mouse.Disconnect += Mouse_Disconnect;
             mouse.BatteryUpdated += Mouse_BatteryUpdated;

@@ -175,9 +175,7 @@ namespace GHelper
 
         private void Updates_Shown(object? sender, EventArgs e)
         {
-            Height = Program.settingsForm.Height;
-            Top = Program.settingsForm.Top;
-            Left = Program.settingsForm.Left - Width - 5;
+            Program.settingsForm.PositionOwnedForm(this);
             AlignLabelUpdates();
             LoadUpdates(true);
         }

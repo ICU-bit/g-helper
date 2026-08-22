@@ -893,26 +893,9 @@ namespace GHelper
 
         }
 
-        public void FormPosition()
-        {
-
-            if (Height > Program.settingsForm.Height)
-            {
-                Top = Math.Max(0, Program.settingsForm.Top + Program.settingsForm.Height - Height);
-            }
-            else
-            {
-                Size = MinimumSize = new Size(0, Program.settingsForm.Height);
-                Height = Program.settingsForm.Height;
-                Top = Program.settingsForm.Top;
-            }
-
-            Left = Program.settingsForm.Left - Width - 5;
-        }
-
         private void Fans_Shown(object? sender, EventArgs e)
         {
-            FormPosition();
+            Program.settingsForm.PositionOwnedForm(this);
         }
 
 

@@ -469,17 +469,7 @@ namespace GHelper
         {
             // combo heights settle once handles exist; relayout before positioning the window
             LayoutSections();
-
-            if (Height > Program.settingsForm.Height)
-            {
-                Top = Program.settingsForm.Top + Program.settingsForm.Height - Height;
-            }
-            else
-            {
-                Top = Program.settingsForm.Top;
-            }
-
-            Left = Program.settingsForm.Left - Width - 5;
+            Program.settingsForm.PositionOwnedForm(this);
         }
 
         private void ComboBoxProfile_DropDownClosed(object? sender, EventArgs e)
