@@ -4,11 +4,19 @@ on:
   release:
     types: [ published ]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing GitHub Release tag to receive the built assets (optional)
+        required: false
+        type: string
 
 permissions:
   contents: write
   id-token: write
   attestations: write
+
+env:
+  RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
 
 jobs:
   release:
@@ -21,51 +29,43 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Check tag matches version
-      if: github.event_name == 'release'
+      if: env.RELEASE_TAG != ''
       run: |
         $version = ([xml](Get-Content app/GHelper.csproj)).Project.PropertyGroup.AssemblyVersion
-        $tag = "${{ github.event.release.tag_name }}"
-        if ($tag -ne "v$version") { throw "Tag $tag does not match AssemblyVersion $version" }
+        if ($env:RELEASE_TAG -ne "v$version") { throw "Tag $env:RELEASE_TAG does not match AssemblyVersion $version" }
 
     - name: Publish
       run: |
         dotnet publish app/GHelper.sln --configuration Release --runtime win-x64 -p:PublishSingleFile=true --no-self-contained
 
-    - name: Upload unsigned EXE
-      id: upload-unsigned
+    - name: Create ZIP
+      run: |
+        Compress-Archive `
+          -Path app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.exe `
+          -DestinationPath app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.zip `
+          -Force
+
+    - name: Upload release artifacts
       uses: actions/upload-artifact@v7
       with:
-        path: app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.exe
+        name: GHelper-win-x64
+        path: |
+          app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.exe
+          app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.zip
 
-    - id: sign-exe
-      uses: signpath/github-action-submit-signing-request@v2
-      with:
-        api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-        organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
-        project-slug: ${{ secrets.SIGNPATH_PROJECT }}
-        signing-policy-slug: ${{ secrets.SIGNPATH_POLICY }}
-        github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
-        wait-for-completion: true
-        output-artifact-directory: './signed'
-
-    - name: Create ZIP from signed EXE
-      run: powershell Compress-Archive ./signed/GHelper.exe ./signed/GHelper.zip
-
-    - name: Upload signed EXE as workflow artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: GHelper-signed
-        path: ./signed/GHelper.exe
-
-    - name: Upload signed EXE and ZIP
-      if: github.event_name == 'release'
+    - name: Upload EXE and ZIP to GitHub Release
+      if: env.RELEASE_TAG != ''
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh release upload "${{ github.event.release.tag_name }}" ./signed/GHelper.exe ./signed/GHelper.zip --clobber
+        gh release upload "$env:RELEASE_TAG" `
+          app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.exe `
+          app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.zip `
+          --clobber
+
     - name: Generate SLSA build provenance attestation
       uses: actions/attest-build-provenance@v4
       with:
         subject-path: |
-          ./signed/GHelper.exe
-          ./signed/GHelper.zip
+          app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.exe
+          app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.zip
