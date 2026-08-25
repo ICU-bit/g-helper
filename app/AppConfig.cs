@@ -36,7 +36,7 @@ public static class AppConfig
         : ProcessHelper.IsRunningAsSystem() && File.Exists(fallbackConfigFile) ? fallbackConfigFile
         : Path.Combine(appPath, configName);
 
-        Directory.CreateDirectory(appPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(configFile));
 
         if (!TryLoadConfig(configFile) && !TryRecoverConfig(configFile) && !TryLoadConfig(configFile + ".bak") && !TryLoadConfig(fallbackConfigFile)) Init();
 
@@ -649,9 +649,9 @@ public static class AppConfig
         return ContainsModel("GU605M") || ContainsModel("FX507") || ContainsModel("FX517") || ContainsModel("FX707");
     }
 
-    public static bool IsModeReapplyRequired()
+    public static bool IsModeReapply()
     {
-        return Is("mode_reapply") || ContainsModel("FA401") || ContainsModel("GA403");
+        return IsNotFalse("mode_reapply");
     }
 
     public static bool IsStandardModeFix()
