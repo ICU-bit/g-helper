@@ -1,13 +1,14 @@
 name: Release
 
 on:
-  release:
-    types: [ published ]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Existing GitHub Release tag to receive the built assets (optional)
-        required: false
+        description: Existing GitHub Release tag to build (for example v0.280)
+        required: true
         type: string
 
 permissions:
@@ -16,20 +17,23 @@ permissions:
   attestations: write
 
 env:
-  RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+  RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
 
 jobs:
   release:
     runs-on: windows-2022
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
+
     - name: Setup dotnet
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: '10.0.x'
 
     - name: Check tag matches version
-      if: env.RELEASE_TAG != ''
+      shell: pwsh
       run: |
         $version = ([xml](Get-Content app/GHelper.csproj)).Project.PropertyGroup.AssemblyVersion
         if ($env:RELEASE_TAG -ne "v$version") { throw "Tag $env:RELEASE_TAG does not match AssemblyVersion $version" }
@@ -39,6 +43,7 @@ jobs:
         dotnet publish app/GHelper.sln --configuration Release --runtime win-x64 -p:PublishSingleFile=true --no-self-contained
 
     - name: Create ZIP
+      shell: pwsh
       run: |
         Compress-Archive `
           -Path app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.exe `
@@ -48,19 +53,35 @@ jobs:
     - name: Upload release artifacts
       uses: actions/upload-artifact@v7
       with:
-        name: GHelper-win-x64
+        name: GHelper-win-x64-${{ env.RELEASE_TAG }}
         path: |
           app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.exe
           app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.zip
 
-    - name: Upload EXE and ZIP to GitHub Release
-      if: env.RELEASE_TAG != ''
+    - name: Create GitHub Release
       env:
         GH_TOKEN: ${{ github.token }}
+      shell: pwsh
+      run: |
+        gh release view "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" *> $null
+        if ($LASTEXITCODE -ne 0) {
+          gh release create "$env:RELEASE_TAG" `
+            --repo "$env:GITHUB_REPOSITORY" `
+            --verify-tag `
+            --title "G-Helper $env:RELEASE_TAG" `
+            --generate-notes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+
+    - name: Upload EXE and ZIP to GitHub Release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      shell: pwsh
       run: |
         gh release upload "$env:RELEASE_TAG" `
           app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.exe `
           app/bin/x64/Release/net10.0-windows/win-x64/publish/GHelper.zip `
+          --repo "$env:GITHUB_REPOSITORY" `
           --clobber
 
     - name: Generate SLSA build provenance attestation
