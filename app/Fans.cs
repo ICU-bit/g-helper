@@ -976,31 +976,36 @@ namespace GHelper
 
         public void InitAxis()
         {
-            if (this == null || this.Text == "") return;
+            if (IsDisposed || Disposing || !IsHandleCreated) return;
 
-            Invoke(delegate
+            try
             {
-                buttonCalibrate.Enabled = true;
-                SetAxis(chartCPU, AsusFan.CPU);
-                SetAxis(chartGPU, AsusFan.GPU);
-                if (chartMid.Visible) SetAxis(chartMid, AsusFan.Mid);
-            });
+                Invoke(delegate
+                {
+                    buttonCalibrate.Enabled = true;
+                    SetAxis(chartCPU, AsusFan.CPU);
+                    SetAxis(chartGPU, AsusFan.GPU);
+                    if (chartMid.Visible) SetAxis(chartMid, AsusFan.Mid);
+                });
+            }
+            catch (InvalidOperationException) when (IsDisposed || Disposing || !IsHandleCreated) { }
         }
 
         public void LabelFansResult(string text)
         {
             if (text.Length > 0) Logger.WriteLine(text);
 
-            if (this.IsDisposed || !this.IsHandleCreated || this.Text == "") return;
+            if (IsDisposed || Disposing || !IsHandleCreated) return;
 
-            try { 
+            try
+            {
                 BeginInvoke(delegate
                 {
                     labelFansResult.Text = text;
                     labelFansResult.Visible = (text.Length > 0);
                 });
             }
-            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) when (IsDisposed || Disposing || !IsHandleCreated) { }
         }
 
 

@@ -144,8 +144,11 @@
   <data name="AlertUltimateTitle" xml:space="preserve">
     <value>Reboot now?</value>
   </data>
-  <data name="AllyController" xml:space="preserve">
-    <value>Ally Controller</value>
+  <data name="AmdOledSaver" xml:space="preserve">
+    <value>AMD OLED Power Saver</value>
+  </data>
+  <data name="ArmouryCrate" xml:space="preserve">
+    <value>Armoury Crate Maintenance</value>
   </data>
   <data name="AnimationDirection" xml:space="preserve">
     <value>Animation Direction</value>
@@ -1018,5 +1021,35 @@ from heating up the sleeping laptop and draining the battery.</value>
   </data>
   <data name="Always" xml:space="preserve">
     <value>Always</value>
+  </data>
+  <data name="Home" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="Overview" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Display" xml:space="preserve">
+    <value>Display</value>
+  </data>
+  <data name="Devices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="Application" xml:space="preserve">
+    <value>Application</value>
+  </data>
+  <data name="OverviewUnsupported" xml:space="preserve">
+    <value>Not supported by this device.</value>
+  </data>
+  <data name="OverviewDisconnected" xml:space="preserve">
+    <value>Connect a supported device to use this feature.</value>
+  </data>
+  <data name="OverviewConditional" xml:space="preserve">
+    <value>Unavailable in the current display or GPU mode.</value>
+  </data>
+  <data name="OverviewLoading" xml:space="preserve">
+    <value>Still detecting device support.</value>
+  </data>
+  <data name="OverviewError" xml:space="preserve">
+    <value>Support detection failed. Try again later.</value>
   </data>
 </root>

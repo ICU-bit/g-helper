@@ -291,23 +291,9 @@ namespace GHelper
                         lastTheme = DateTimeOffset.Now.ToUnixTimeMilliseconds();
                     }
 
-                    if (settingsForm.IsFormAlive(settingsForm.fansForm))
-                        settingsForm.fansForm.InitTheme();
-
-                    if (settingsForm.IsFormAlive(settingsForm.extraForm))
-                        settingsForm.extraForm.InitTheme();
-
-                    if (settingsForm.IsFormAlive(settingsForm.updatesForm))
-                        settingsForm.updatesForm.InitTheme();
-
-                    if (settingsForm.IsFormAlive(settingsForm.matrixForm))
-                        settingsForm.matrixForm.InitTheme();
-
-                    if (settingsForm.IsFormAlive(settingsForm.slashForm))
-                        settingsForm.slashForm.InitTheme();
-
-                    if (settingsForm.IsFormAlive(settingsForm.handheldForm))
-                        settingsForm.handheldForm.InitTheme();
+                    foreach (Form form in settingsForm.OwnedForms)
+                        if (form is UI.RForm ownedForm && settingsForm.IsFormAlive(ownedForm))
+                            ownedForm.InitTheme();
 
                     break;
             }
@@ -457,18 +443,18 @@ namespace GHelper
                 settingsForm.WindowState = FormWindowState.Normal;
 
                 settingsForm.Location = screen.WorkingArea.Location;
-                settingsForm.Left = screen.WorkingArea.Width - 10 - settingsForm.Width;
-                settingsForm.Top = screen.WorkingArea.Height - 10 - settingsForm.Height;
+                settingsForm.Left = screen.WorkingArea.Right - 10 - settingsForm.Width;
+                settingsForm.Top = screen.WorkingArea.Bottom - 10 - settingsForm.Height;
 
                 settingsForm.Show();
                 settingsForm.ShowAll();
 
-                settingsForm.Left = screen.WorkingArea.Width - 10 - settingsForm.Width;
+                settingsForm.Left = screen.WorkingArea.Right - 10 - settingsForm.Width;
 
                 if (AppConfig.IsAlly())
-                    settingsForm.Top = Math.Max(10, screen.Bounds.Height - 110 - settingsForm.Height);
+                    settingsForm.Top = Math.Max(screen.WorkingArea.Top + 10, screen.WorkingArea.Bottom - 110 - settingsForm.Height);
                 else
-                    settingsForm.Top = screen.WorkingArea.Height - 10 - settingsForm.Height;
+                    settingsForm.Top = screen.WorkingArea.Bottom - 10 - settingsForm.Height;
 
                 settingsForm.VisualiseGPUMode();
             }

@@ -21,14 +21,53 @@ namespace GHelper
 {
     public partial class SettingsForm : RForm
     {
+        private enum SettingsPage
+        {
+            Home,
+            Overview,
+            Display,
+            Lighting,
+            Devices,
+            Application
+        }
+
+        private enum OverviewAction
+        {
+            Navigate,
+            OpenOwned,
+            DirectAction,
+            ExplainUnavailable
+        }
+
+        private enum OverviewStatus
+        {
+            Available,
+            Unsupported,
+            Disconnected,
+            Conditional,
+            Loading,
+            Error
+        }
+
+        private sealed record OverviewItem(
+            string Label,
+            SettingsPage Page,
+            Control? Target,
+            OverviewAction Action,
+            Action? Execute,
+            Func<OverviewStatus> GetStatus)
+        {
+            public RButton? Button { get; set; }
+            public Label? Explanation { get; set; }
+        }
+
         ContextMenuStrip contextMenuStrip = new CustomContextMenu();
         ToolStripMenuItem menuEco, menuStandard, menuUltimate, menuOptimized;
         public GPUModeControl gpuControl;
         public AllyControl allyControl;
         AutoUpdateControl updateControl;
 
-        AsusMouseSettings? mouseSettings;
-        AsusKeyboardSettings? keyboardSettings;
+        private readonly Dictionary<IPeripheral, RForm> peripheralSettings = new(ReferenceEqualityComparer.Instance);
 
         public AniMatrixControl matrixControl;
 
@@ -50,6 +89,21 @@ namespace GHelper
         bool isGpuSection = true;
         bool isMuxGpu = true;
 
+        bool visualAvailable;
+        bool allyAvailable;
+        bool rearLightAvailable;
+        bool matrixAvailable = true;
+        bool screenAvailable = true;
+        bool gpuAvailable = true;
+        bool peripheralsAvailable;
+
+        SettingsPage currentPage = SettingsPage.Home;
+        readonly Dictionary<SettingsPage, int> pageScrollPositions = new();
+        private readonly Panel overviewPanel = new() { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
+        private readonly List<OverviewItem> overviewItems = new();
+
+        private OverviewItem? expandedOverviewItem;
+
         bool batteryMouseOver = false;
         bool batteryFullMouseOver = false;
 
@@ -60,6 +114,11 @@ namespace GHelper
         {
 
             InitializeComponent();
+            panelContent.Controls.Add(overviewPanel);
+            overviewPanel.AccessibleRole = AccessibleRole.Grouping;
+            overviewPanel.AccessibleName = Properties.Strings.Overview;
+            buttonBack.Image = new Bitmap(Properties.Resources.icons8_next_32);
+            buttonBack.Image.RotateFlip(RotateFlipType.RotateNoneFlipX);
             InitTheme(true);
 
             gpuControl = new GPUModeControl(this);
@@ -82,7 +141,7 @@ namespace GHelper
             buttonMiniled.Text = Properties.Strings.Multizone;
 
             buttonKeyboardColor.Text = Properties.Strings.Color;
-            buttonKeyboard.Text = Properties.Strings.Extra;
+            buttonKeyboard.Text = Properties.Strings.ExtraSettings;
 
             labelPerf.Text = Properties.Strings.PerformanceMode;
             labelGPU.Text = Properties.Strings.GPUMode;
@@ -95,7 +154,10 @@ namespace GHelper
 
             buttonMatrix.Text = "Matrix";
             buttonQuit.Text = Properties.Strings.Quit;
-            buttonUpdates.Text = Properties.Strings.Updates;
+            buttonUpdates.Text = Properties.Strings.BiosAndDriverUpdates;
+            buttonEnergySaver.Text = Properties.Strings.EnergySettings;
+            buttonAmdOled.Text = Properties.Strings.AmdOledSaver;
+            buttonArmoury.Text = Properties.Strings.ArmouryCrate;
 
             buttonController.Text = Properties.Strings.Controller;
             labelAlly.Text = Properties.Strings.AllyController;
@@ -162,6 +224,11 @@ namespace GHelper
             buttonSilent.Click += ButtonSilent_Click;
             buttonBalanced.Click += ButtonBalanced_Click;
             buttonTurbo.Click += ButtonTurbo_Click;
+
+            buttonBack.Click += ButtonBack_Click;
+            buttonSettings.Click += ButtonSettings_Click;
+            toolTip.SetToolTip(buttonBack, Properties.Strings.Back);
+            toolTip.SetToolTip(buttonSettings, Properties.Strings.Overview);
 
             buttonEco.Click += ButtonEco_Click;
             buttonStandard.Click += ButtonStandard_Click;
@@ -236,6 +303,8 @@ namespace GHelper
 
             buttonUpdates.Click += ButtonUpdates_Click;
 
+            BuildOverview();
+
             sliderBattery.MouseUp += SliderBattery_MouseUp;
             sliderBattery.KeyUp += SliderBattery_KeyUp;
             sliderBattery.ValueChanged += SliderBattery_ValueChanged;
@@ -289,6 +358,7 @@ namespace GHelper
 
             panelPerformance.Focus();
             InitVisual();
+            ResetToHome();
         }
 
         private void ButtonArmoury_Click(object? sender, EventArgs e)
@@ -357,6 +427,296 @@ namespace GHelper
             BatteryControl.BatteryReport();
         }
 
+        private void BuildOverview()
+        {
+            overviewItems.Clear();
+            overviewItems.AddRange(new[]
+            {
+                new OverviewItem(Properties.Strings.LaptopScreen, SettingsPage.Display, panelScreen, OverviewAction.Navigate, null, () => screenAvailable ? OverviewStatus.Available : OverviewStatus.Conditional),
+                new OverviewItem(Properties.Strings.VisualMode + " / OLED", SettingsPage.Display, panelGamma, OverviewAction.Navigate, null, () => visualAvailable ? OverviewStatus.Available : OverviewStatus.Unsupported),
+                new OverviewItem(Properties.Strings.AmdOledSaver, SettingsPage.Display, null, OverviewAction.DirectAction, () => ButtonAmdOled_Click(this, EventArgs.Empty), () => buttonAmdOled.Visible ? OverviewStatus.Available : OverviewStatus.Unsupported),
+                new OverviewItem(Properties.Strings.LaptopKeyboard, SettingsPage.Lighting, panelKeyboard, OverviewAction.Navigate, null, () => OverviewStatus.Available),
+                new OverviewItem(Properties.Strings.Battery, SettingsPage.Devices, panelBattery, OverviewAction.Navigate, null, () => OverviewStatus.Available),
+                new OverviewItem(Properties.Strings.FansAndPower, SettingsPage.Devices, null, OverviewAction.OpenOwned, () => FansToggle(), () => OverviewStatus.Available),
+                new OverviewItem(Properties.Strings.Peripherals, SettingsPage.Devices, panelPeripherals, OverviewAction.Navigate, null, () => peripheralsAvailable ? OverviewStatus.Available : OverviewStatus.Disconnected),
+                new OverviewItem(Properties.Strings.RunOnStartup, SettingsPage.Application, panelStartup, OverviewAction.Navigate, null, () => OverviewStatus.Available),
+                new OverviewItem(Properties.Strings.Updates, SettingsPage.Application, panelVersion, OverviewAction.DirectAction, () => updateControl.CheckForUpdates(), () => OverviewStatus.Available),
+                new OverviewItem(Properties.Strings.BiosAndDriverUpdates, SettingsPage.Application, null, OverviewAction.OpenOwned, () => ButtonUpdates_Click(this, EventArgs.Empty), () => OverviewStatus.Available),
+                new OverviewItem(Properties.Strings.EnergySettings, SettingsPage.Application, null, OverviewAction.DirectAction, () => ButtonEnergySaver_Click(this, EventArgs.Empty), () => buttonEnergySaver.Visible ? OverviewStatus.Available : OverviewStatus.Conditional),
+                new OverviewItem(Properties.Strings.ArmouryCrate, SettingsPage.Application, null, OverviewAction.DirectAction, () => ButtonArmoury_Click(this, EventArgs.Empty), () => buttonArmoury.Visible ? OverviewStatus.Available : OverviewStatus.Unsupported),
+                new OverviewItem(Properties.Strings.ExtraSettings, SettingsPage.Application, null, OverviewAction.OpenOwned, () => ButtonKeyboard_Click(this, EventArgs.Empty), () => OverviewStatus.Available),
+                new OverviewItem(Properties.Strings.Quit, SettingsPage.Application, null, OverviewAction.DirectAction, () => ButtonQuit_Click(this, EventArgs.Empty), () => OverviewStatus.Available),
+            });
+
+            if (AppConfig.HasRearLight())
+                overviewItems.Insert(3, new OverviewItem(Properties.Strings.Lightbar, SettingsPage.Lighting, panelRearLight, OverviewAction.Navigate, null, () => rearLightAvailable ? OverviewStatus.Available : OverviewStatus.Unsupported));
+
+            if (AppConfig.IsAnimeMatrix() || AppConfig.IsSlash())
+                overviewItems.Insert(4, new OverviewItem(Properties.Strings.AnimeMatrix, SettingsPage.Lighting, panelMatrix, OverviewAction.Navigate, null, () => matrixAvailable ? OverviewStatus.Available : OverviewStatus.Unsupported));
+
+            if (AppConfig.IsAlly())
+                overviewItems.Insert(8, new OverviewItem(Properties.Strings.AllyController, SettingsPage.Devices, panelAlly, OverviewAction.Navigate, null, () => allyAvailable ? OverviewStatus.Available : OverviewStatus.Unsupported));
+
+            overviewPanel.Controls.Clear();
+            overviewPanel.Padding = new Padding(20, 10, 20, 20);
+            TableLayoutPanel groups = new()
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 1,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
+
+            AddOverviewGroup(groups, Properties.Strings.Display, overviewItems.Where(item => item.Page == SettingsPage.Display));
+            AddOverviewGroup(groups, Properties.Strings.Lighting, overviewItems.Where(item => item.Page == SettingsPage.Lighting));
+            AddOverviewGroup(groups, Properties.Strings.Devices, overviewItems.Where(item => item.Page == SettingsPage.Devices));
+            AddOverviewGroup(groups, Properties.Strings.Application, overviewItems.Where(item => item.Page == SettingsPage.Application));
+
+            overviewPanel.Controls.Add(groups);
+            ControlHelper.Adjust(this);
+        }
+
+        private void AddOverviewGroup(TableLayoutPanel groups, string title, IEnumerable<OverviewItem> items)
+        {
+            Label heading = new()
+            {
+                AutoSize = true,
+                Dock = DockStyle.Top,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Margin = new Padding(4, 10, 4, 4),
+                Text = title
+            };
+            groups.Controls.Add(heading);
+
+            foreach (OverviewItem item in items)
+            {
+                RButton button = new()
+                {
+                    AccessibleName = item.Label,
+                    Dock = DockStyle.Top,
+                    Height = 48,
+                    Margin = new Padding(0, 2, 0, 2),
+                    Name = "overview" + item.Label.Replace(" ", string.Empty),
+                    Secondary = true,
+                    TabStop = true,
+                    Text = item.Label,
+                    Tag = item
+                };
+                Label explanation = new()
+                {
+                    AutoSize = true,
+                    Dock = DockStyle.Top,
+                    ForeColor = SystemColors.GrayText,
+                    Margin = new Padding(8, 0, 8, 6),
+                    MaximumSize = new Size(760, 0),
+                    Visible = false
+                };
+                item.Button = button;
+                item.Explanation = explanation;
+                button.Click += OverviewItem_Click;
+                button.KeyDown += OverviewItem_KeyDown;
+                groups.Controls.Add(button);
+                groups.Controls.Add(explanation);
+            }
+        }
+
+        private void OverviewItem_Click(object? sender, EventArgs e)
+        {
+            if (sender is not RButton { Tag: OverviewItem item }) return;
+
+            OverviewStatus status = item.GetStatus();
+            if (status != OverviewStatus.Available)
+            {
+                ToggleOverviewExplanation(item, status);
+                return;
+            }
+
+            if (item.Action == OverviewAction.Navigate)
+            {
+                NavigateTo(item.Page, true);
+                if (item.Target is not null)
+                {
+                    panelContent.ScrollControlIntoView(item.Target);
+                    item.Target.Focus();
+                }
+                return;
+            }
+
+            item.Execute?.Invoke();
+        }
+
+        private void OverviewItem_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.KeyCode is Keys.Enter or Keys.Space)
+            {
+                OverviewItem_Click(sender, EventArgs.Empty);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        private void ToggleOverviewExplanation(OverviewItem item, OverviewStatus status)
+        {
+            if (expandedOverviewItem is not null && !ReferenceEquals(expandedOverviewItem, item))
+            {
+                expandedOverviewItem.Explanation!.Visible = false;
+                expandedOverviewItem.Button!.AccessibleDescription = null;
+            }
+
+            if (ReferenceEquals(expandedOverviewItem, item) && item.Explanation!.Visible)
+            {
+                item.Explanation.Visible = false;
+                item.Button!.AccessibleDescription = null;
+                expandedOverviewItem = null;
+                return;
+            }
+
+            string reason = status switch
+            {
+                OverviewStatus.Unsupported => Properties.Strings.OverviewUnsupported,
+                OverviewStatus.Disconnected => Properties.Strings.OverviewDisconnected,
+                OverviewStatus.Conditional => Properties.Strings.OverviewConditional,
+                OverviewStatus.Loading => Properties.Strings.OverviewLoading,
+                OverviewStatus.Error => Properties.Strings.OverviewError,
+                _ => string.Empty
+            };
+            item.Explanation!.Text = reason;
+            item.Explanation.Visible = true;
+            item.Button!.AccessibleDescription = reason;
+            expandedOverviewItem = item;
+            overviewPanel.PerformLayout();
+            ResizeForCurrentPage();
+        }
+
+        private void RefreshOverviewStatuses()
+        {
+            foreach (OverviewItem item in overviewItems)
+            {
+                if (item.Button is null) continue;
+                OverviewStatus status = item.GetStatus();
+                bool available = status == OverviewStatus.Available;
+                item.Button.ForeColor = available ? foreMain : SystemColors.GrayText;
+                item.Button.AccessibleDescription = available ? null : GetOverviewReason(status);
+                item.Button.Invalidate();
+            }
+        }
+
+        private static string GetOverviewReason(OverviewStatus status)
+        {
+            return status switch
+            {
+                OverviewStatus.Unsupported => Properties.Strings.OverviewUnsupported,
+                OverviewStatus.Disconnected => Properties.Strings.OverviewDisconnected,
+                OverviewStatus.Conditional => Properties.Strings.OverviewConditional,
+                OverviewStatus.Loading => Properties.Strings.OverviewLoading,
+                OverviewStatus.Error => Properties.Strings.OverviewError,
+                _ => string.Empty
+            };
+        }
+
+        private void ApplyFeatureVisibility()
+        {
+            if (InvokeRequired) { Invoke(ApplyFeatureVisibility); return; }
+
+            int scroll = -panelContent.AutoScrollPosition.Y;
+            bool home = currentPage == SettingsPage.Home;
+            bool overview = currentPage == SettingsPage.Overview;
+            bool display = currentPage == SettingsPage.Display;
+            bool lighting = currentPage == SettingsPage.Lighting;
+            bool devices = currentPage == SettingsPage.Devices;
+            bool application = currentPage == SettingsPage.Application;
+
+            overviewPanel.Visible = overview;
+            panelPerformance.Visible = home;
+            panelGPU.Visible = home && gpuAvailable;
+
+            panelScreen.Visible = display && screenAvailable;
+            panelGamma.Visible = display && visualAvailable;
+
+            panelKeyboard.Visible = lighting;
+            panelRearLight.Visible = lighting && rearLightAvailable;
+            panelMatrix.Visible = lighting && matrixAvailable;
+
+            panelBattery.Visible = devices;
+            panelPeripherals.Visible = devices && peripheralsAvailable;
+            panelAlly.Visible = devices && allyAvailable;
+
+            panelStartup.Visible = application;
+            panelVersion.Visible = application;
+            panelFooter.Visible = application;
+
+            panelKeyboardTitle.Visible = !allyAvailable;
+            panelKeyboard.Padding = new Padding(panelKeyboard.Padding.Left, allyAvailable ? 0 : 20, panelKeyboard.Padding.Right, panelKeyboard.Padding.Bottom);
+            tableAMD.Visible = allyAvailable;
+
+            panelContent.PerformLayout();
+            ResizeForCurrentPage();
+            RefreshOverviewStatuses();
+            panelContent.AutoScrollPosition = new Point(0, scroll);
+        }
+
+        private void NavigateTo(SettingsPage page, bool resetScroll = false)
+        {
+            if (currentPage != page)
+                pageScrollPositions[currentPage] = -panelContent.AutoScrollPosition.Y;
+
+            currentPage = page;
+            labelPageTitle.Text = page switch
+            {
+                SettingsPage.Home => Properties.Strings.Home,
+                SettingsPage.Overview => Properties.Strings.Overview,
+                SettingsPage.Display => Properties.Strings.Display,
+                SettingsPage.Lighting => Properties.Strings.Lighting,
+                SettingsPage.Devices => Properties.Strings.Devices,
+                SettingsPage.Application => Properties.Strings.Application,
+                _ => Properties.Strings.Home,
+            };
+
+            buttonSettings.Visible = page == SettingsPage.Home;
+            buttonBack.Visible = page != SettingsPage.Home;
+
+            ApplyFeatureVisibility();
+
+            int scroll = resetScroll ? 0 : pageScrollPositions.GetValueOrDefault(page);
+            panelContent.AutoScrollPosition = new Point(0, scroll);
+
+            if (page == SettingsPage.Home)
+                panelPerformance.Focus();
+            else
+                buttonBack.Focus();
+        }
+
+        public void ResetToHome()
+        {
+            pageScrollPositions[SettingsPage.Home] = 0;
+            NavigateTo(SettingsPage.Home, true);
+        }
+
+        private void ResizeForCurrentPage()
+        {
+            int contentHeight = panelContent.Controls.Cast<Control>().Where(control => control.Visible).Sum(control => control.Height);
+            int nonClientHeight = Height - ClientSize.Height;
+            int desiredHeight = Padding.Vertical + panelNavigation.Height + contentHeight + nonClientHeight;
+            Rectangle workArea = Screen.FromControl(this).WorkingArea;
+
+            Height = Math.Clamp(desiredHeight, MinimumSize.Height, Math.Max(MinimumSize.Height, workArea.Height - 20));
+
+            Left = Math.Clamp(Left, workArea.Left, Math.Max(workArea.Left, workArea.Right - Width));
+            Top = Math.Clamp(Top, workArea.Top, Math.Max(workArea.Top, workArea.Bottom - Height));
+        }
+
+        private void ButtonSettings_Click(object? sender, EventArgs e)
+        {
+            NavigateTo(SettingsPage.Overview);
+        }
+
+        private void ButtonBack_Click(object? sender, EventArgs e)
+        {
+            NavigateTo(currentPage == SettingsPage.Overview ? SettingsPage.Home : SettingsPage.Overview);
+        }
+
         private void LabelVisual_Click(object? sender, EventArgs e)
         {
             labelVisual.Visible = false;
@@ -370,7 +730,8 @@ namespace GHelper
 
             if (AppConfig.IsOLED())
             {
-                panelGamma.Visible = true;
+                visualAvailable = true;
+                ApplyFeatureVisibility();
                 sliderGamma.Visible = true;
                 labelGammaTitle.Text = Properties.Strings.FlickerFreeDimming + " / " + Properties.Strings.VisualMode;
 
@@ -404,14 +765,16 @@ namespace GHelper
                     buttonInstallColor.Visible = true;
                     buttonInstallColor.Click += ButtonInstallColorProfile_Click;
 
-                    panelGamma.Visible = true;
+                    visualAvailable = true;
+                    ApplyFeatureVisibility();
                     tableVisual.Visible = true;
                 }
 
                 return;
             }
 
-            panelGamma.Visible = true;
+            visualAvailable = true;
+            ApplyFeatureVisibility();
             tableVisual.Visible = true;
 
             var visualValue = (SplendidCommand)AppConfig.Get("visual", (int)VisualControl.GetDefaultVisualMode());
@@ -504,12 +867,14 @@ namespace GHelper
         {
             if (InvokeRequired) { Invoke(() => VisualiseAmdOled(status)); return; }
             buttonAmdOled.Visible = status;
+            RefreshOverviewStatuses();
         }
 
         public void VisualiseArmoury(bool status = false)
         {
             if (InvokeRequired) { Invoke(() => VisualiseArmoury(status)); return; }
             buttonArmoury.Visible = status;
+            RefreshOverviewStatuses();
         }
 
         public void VisualiseDisabled()
@@ -542,14 +907,7 @@ namespace GHelper
                 RegisterOwnedForm(handheldForm);
             }
 
-            if (handheldForm.Visible)
-            {
-                handheldForm.Close();
-            }
-            else
-            {
-                handheldForm.Show();
-            }
+            ShowOrActivate(handheldForm);
         }
 
         private void ButtonFPS_Click(object? sender, EventArgs e)
@@ -572,14 +930,11 @@ namespace GHelper
             if (!visible) return;
             if (InvokeRequired) { Invoke(() => VisualiseAlly(visible)); return; }
 
-            panelAlly.Visible = true;
-            panelKeyboardTitle.Visible = false;
-            panelKeyboard.Padding = new Padding(panelKeyboard.Padding.Left, 0, panelKeyboard.Padding.Right, panelKeyboard.Padding.Bottom);
+            allyAvailable = true;
+            ApplyFeatureVisibility();
 
             buttonOverlay.Text = Properties.Strings.Overlay;
             buttonOverlay.Activated = AppConfig.IsOverlay();
-
-            tableAMD.Visible = true;
         }
 
         public void VisualiseController(ControllerMode mode)
@@ -624,6 +979,7 @@ namespace GHelper
             if (activateCheck)
             {
                 buttonAmdOled.Visible = AmdDisplay.IsOledPowerOptimization();
+                RefreshOverviewStatuses();
                 activateCheck = false;
             }
         }
@@ -657,8 +1013,9 @@ namespace GHelper
                 return;
             }
 
-            Left = Screen.FromControl(this).WorkingArea.Width - 10 - Width;
-            Top = Screen.FromControl(this).WorkingArea.Height - 10 - Height;
+            Rectangle workArea = Screen.FromControl(this).WorkingArea;
+            Left = workArea.Right - 10 - Width;
+            Top = workArea.Bottom - 10 - Height;
         }
 
         public void PositionOwnedForm(Form form)
@@ -680,6 +1037,18 @@ namespace GHelper
             return form is not null && !form.IsDisposed && !form.Disposing;
         }
 
+        private void ShowOrActivate(Form form)
+        {
+            if (!form.Visible)
+            {
+                PositionOwnedForm(form);
+                form.Show();
+            }
+
+            form.Activate();
+            form.BringToFront();
+        }
+
         private void RegisterOwnedForm(Form form)
         {
             AddOwnedForm(form);
@@ -694,8 +1063,12 @@ namespace GHelper
             if (ReferenceEquals(sender, matrixForm)) matrixForm = null;
             if (ReferenceEquals(sender, slashForm)) slashForm = null;
             if (ReferenceEquals(sender, handheldForm)) handheldForm = null;
-            if (ReferenceEquals(sender, mouseSettings)) mouseSettings = null;
-            if (ReferenceEquals(sender, keyboardSettings)) keyboardSettings = null;
+
+            if (sender is RForm form)
+            {
+                IPeripheral? device = peripheralSettings.FirstOrDefault(pair => ReferenceEquals(pair.Value, form)).Key;
+                if (device is not null) peripheralSettings.Remove(device);
+            }
         }
 
         private void PanelBattery_MouseEnter(object? sender, EventArgs e)
@@ -727,9 +1100,10 @@ namespace GHelper
 
         private void SettingsForm_VisibleChanged(object? sender, EventArgs e)
         {
-            sensorTimer.Enabled = this.Visible || sensorsAlways;
-            if (this.Visible)
+            sensorTimer.Enabled = Visible || sensorsAlways;
+            if (Visible)
             {
+                ResetToHome();
                 Task.Run((Action)RefreshPeripheralsBattery);
                 if (Environment.GetCommandLineArgs().Length > 1 && Environment.GetCommandLineArgs()[1] == "autoupdate")
                     updateControl.CheckForUpdates();
@@ -749,14 +1123,7 @@ namespace GHelper
                 RegisterOwnedForm(updatesForm);
             }
 
-            if (updatesForm.Visible)
-            {
-                updatesForm.Close();
-            }
-            else
-            {
-                updatesForm.Show();
-            }
+            ShowOrActivate(updatesForm);
         }
 
         public void VisualiseMatrixPicture(string image)
@@ -812,6 +1179,7 @@ namespace GHelper
                 {
                     Logger.WriteLine("Battery Saver: " + settings.Data);
                     buttonEnergySaver.Visible = settings.Data != 0;
+                    RefreshOverviewStatuses();
                 }
                 else
                 {
@@ -1085,7 +1453,6 @@ namespace GHelper
 
         private void ButtonMatrix_Click(object? sender, EventArgs e)
         {
-
             if (matrixControl.IsSlash)
             {
                 if (!IsFormAlive(slashForm))
@@ -1094,16 +1461,7 @@ namespace GHelper
                     RegisterOwnedForm(slashForm);
                 }
 
-                if (slashForm.Visible)
-                {
-                    slashForm.Close();
-                }
-                else
-                {
-                    PositionOwnedForm(slashForm);
-                    slashForm.Show();
-                }
-
+                ShowOrActivate(slashForm);
                 return;
             }
 
@@ -1113,16 +1471,7 @@ namespace GHelper
                 RegisterOwnedForm(matrixForm);
             }
 
-            if (matrixForm.Visible)
-            {
-                matrixForm.Close();
-            }
-            else
-            {
-                PositionOwnedForm(matrixForm);
-                matrixForm.Show();
-            }
-
+            ShowOrActivate(matrixForm);
         }
 
         public void VisualiseMatrixRunning(int mode)
@@ -1179,21 +1528,13 @@ namespace GHelper
         public void ServicesToggle()
         {
             Extra form = GetExtraForm();
-            if (!form.Visible) form.Show();
+            ShowOrActivate(form);
             form.ServiesToggle();
         }
 
         private void ButtonKeyboard_Click(object? sender, EventArgs e)
         {
-            Extra form = GetExtraForm();
-            if (form.Visible)
-            {
-                form.Close();
-            }
-            else
-            {
-                form.Show();
-            }
+            ShowOrActivate(GetExtraForm());
         }
 
         public void FansInit()
@@ -1216,17 +1557,8 @@ namespace GHelper
                 RegisterOwnedForm(fansForm);
             }
 
-            if (fansForm.Visible)
-            {
-                fansForm.Close();
-            }
-            else
-            {
-                PositionOwnedForm(fansForm);
-                fansForm.Show();
-                fansForm.ToggleNavigation(index);
-            }
-
+            ShowOrActivate(fansForm);
+            fansForm.ToggleNavigation(index);
         }
 
         private void ButtonFans_Click(object? sender, EventArgs e)
@@ -1279,7 +1611,8 @@ namespace GHelper
             buttonRearColor.Click += ButtonRearColor_Click;
 
             buttonRearColor.SwatchColor = Aura.RearColor;
-            panelRearLight.Visible = true;
+            rearLightAvailable = true;
+            ApplyFeatureVisibility();
         }
 
         public void InitAura()
@@ -1329,7 +1662,7 @@ namespace GHelper
             buttonKeyboardColor.SwatchColor = Aura.Color1;
             buttonKeyboardColor.SwatchColor2 = Aura.HasSecondColor() ? Aura.Color2 : (Color?)null;
 
-            if (panelRearLight.Visible) buttonRearColor.SwatchColor = Aura.RearColor;
+            if (rearLightAvailable) buttonRearColor.SwatchColor = Aura.RearColor;
 
             bool dynamic = AppConfig.IsDynamicLighting() && DynamicLightingHelper.IsEnabled() && !AppConfig.IsDynamicLightingOnly();
 
@@ -1361,7 +1694,8 @@ namespace GHelper
 
             if (!matrixControl.IsValid)
             {
-                panelMatrix.Visible = false;
+                matrixAvailable = false;
+                ApplyFeatureVisibility();
                 return;
             }
 
@@ -1477,13 +1811,15 @@ namespace GHelper
             if (maxFrequency > ScreenControl.MIN_RATE)
             {
                 button120Hz.Text = maxFrequency.ToString() + "Hz" + (overdriveSetting ? " + OD" : "");
-                panelScreen.Visible = true;
+                screenAvailable = true;
+                ApplyFeatureVisibility();
                 tableScreen.Visible = true;
             }
             else if (maxFrequency > 0)
             {
                 tableScreen.Visible = false;
-                panelScreen.Visible = AppConfig.NoGpu();
+                screenAvailable = AppConfig.NoGpu();
+                ApplyFeatureVisibility();
             }
 
             if (fhd >= 0)
@@ -1575,15 +1911,10 @@ namespace GHelper
         /// </summary>
         public void HideAll()
         {
-            this.Hide();
-            if (IsFormAlive(fansForm)) fansForm.Close();
-            if (IsFormAlive(extraForm)) extraForm.Close();
-            if (IsFormAlive(updatesForm)) updatesForm.Close();
-            if (IsFormAlive(matrixForm)) matrixForm.Close();
-            if (IsFormAlive(slashForm)) slashForm.Close();
-            if (IsFormAlive(handheldForm)) handheldForm.Close();
-            if (IsFormAlive(mouseSettings)) mouseSettings.Close();
-            if (IsFormAlive(keyboardSettings)) keyboardSettings.Close();
+            foreach (Form form in OwnedForms.ToArray())
+                if (IsFormAlive(form)) form.Close();
+
+            Hide();
             MemoryHelper.TrimAfter();
         }
 
@@ -1603,15 +1934,8 @@ namespace GHelper
         /// <returns>Focus state</returns>
         public bool HasAnyFocus(bool lostFocusCheck = false)
         {
-            return (IsFormAlive(fansForm) && fansForm.ContainsFocus) ||
-                   (IsFormAlive(extraForm) && extraForm.ContainsFocus) ||
-                   (IsFormAlive(updatesForm) && updatesForm.ContainsFocus) ||
-                   (IsFormAlive(matrixForm) && matrixForm.ContainsFocus) ||
-                   (IsFormAlive(slashForm) && slashForm.ContainsFocus) ||
-                   (IsFormAlive(handheldForm) && handheldForm.ContainsFocus) ||
-                   (IsFormAlive(mouseSettings) && mouseSettings.ContainsFocus) ||
-                   (IsFormAlive(keyboardSettings) && keyboardSettings.ContainsFocus) ||
-                   this.ContainsFocus ||
+            return OwnedForms.Any(form => IsFormAlive(form) && form.ContainsFocus) ||
+                   ContainsFocus ||
                    (lostFocusCheck && Math.Abs(DateTimeOffset.Now.ToUnixTimeMilliseconds() - lastLostFocus) < 300);
         }
 
@@ -1620,7 +1944,10 @@ namespace GHelper
             if (e.CloseReason == CloseReason.UserClosing)
             {
                 e.Cancel = true;
-                HideAll();
+                if (currentPage == SettingsPage.Home)
+                    HideAll();
+                else
+                    ButtonBack_Click(this, EventArgs.Empty);
             }
         }
 
@@ -1890,6 +2217,8 @@ namespace GHelper
 
         public void HideGPUModes(bool gpuExists)
         {
+            if (InvokeRequired) { Invoke(() => HideGPUModes(gpuExists)); return; }
+
             isGpuSection = false;
 
             buttonEco.Visible = false;
@@ -1902,7 +2231,8 @@ namespace GHelper
 
             SetContextMenu();
 
-            panelGPU.Visible = gpuExists;
+            gpuAvailable = gpuExists;
+            ApplyFeatureVisibility();
 
         }
 
@@ -2102,16 +2432,18 @@ namespace GHelper
 
         public void VisualizePeripherals()
         {
-            if (!PeripheralsProvider.IsAnyPeripheralConnect())
+            List<IPeripheral> lp = PeripheralsProvider.AllPeripherals();
+            peripheralsAvailable = lp.Count > 0;
+
+            if (!peripheralsAvailable)
             {
-                panelPeripherals.Visible = false;
+                ApplyFeatureVisibility();
                 return;
             }
 
             Button[] buttons = new Button[] { buttonPeripheral1, buttonPeripheral2, buttonPeripheral3 };
 
             //we only support 4 devces for now. Who has more than 4 mice connected to the same PC anyways....
-            List<IPeripheral> lp = PeripheralsProvider.AllPeripherals();
 
             for (int i = 0; i < lp.Count && i < buttons.Length; ++i)
             {
@@ -2172,7 +2504,7 @@ namespace GHelper
                 buttons[i].Visible = false;
             }
 
-            panelPeripherals.Visible = true;
+            ApplyFeatureVisibility();
         }
 
         private void ButtonPeripheral_MouseEnter(object? sender, EventArgs e)
@@ -2197,89 +2529,52 @@ namespace GHelper
 
         private void ButtonPeripheral_Click(object? sender, EventArgs e)
         {
-            if (mouseSettings is not null)
-            {
-                mouseSettings.Close();
-                return;
-            }
-
-            if (keyboardSettings is not null)
-            {
-                keyboardSettings.Close();
-                return;
-            }
-
             int index = 0;
             if (sender == buttonPeripheral2) index = 1;
             if (sender == buttonPeripheral3) index = 2;
 
-            IPeripheral iph = PeripheralsProvider.AllPeripherals().ElementAt(index);
+            IPeripheral? peripheral = PeripheralsProvider.AllPeripherals().ElementAtOrDefault(index);
+            if (peripheral is null || !peripheral.IsDeviceReady) return;
 
-            if (iph is null)
+            if (peripheralSettings.TryGetValue(peripheral, out RForm? existing) && IsFormAlive(existing))
             {
-                //Can only happen when the user hits the button in the exact moment a device is disconnected.
+                ShowOrActivate(existing);
                 return;
             }
 
-            if (iph.DeviceType() == PeripheralType.Mouse)
+            RForm? form = peripheral switch
             {
-                AsusMouse? am = iph as AsusMouse;
-                if (am is null || !am.IsDeviceReady)
-                {
-                    //Should not happen if all device classes are implemented correctly. But better safe than sorry.
-                    return;
-                }
-                mouseSettings = new AsusMouseSettings(am);
-                RegisterOwnedForm(mouseSettings);
-                mouseSettings.TopMost = AppConfig.Is("topmost");
-                mouseSettings.Disposed += MouseSettings_Disposed;
-                if (IsFormAlive(mouseSettings))
-                {
-                    mouseSettings.Show();
-                }
-                else
-                {
-                    mouseSettings = null;
-                }
+                AsusMouse mouse => new AsusMouseSettings(mouse),
+                AsusKeyboard keyboard => CreateKeyboardSettings(keyboard),
+                _ => null,
+            };
+            if (form is null) return;
 
-            }
-
-            if (iph.DeviceType() == PeripheralType.Keyboard)
-            {
-                AsusKeyboard? kb = iph as AsusKeyboard;
-                if (kb is null || !kb.IsDeviceReady)
-                {
-                    return;
-                }
-                ShowKeyboardSettings(kb);
-            }
+            peripheralSettings[peripheral] = form;
+            RegisterOwnedForm(form);
+            form.TopMost = AppConfig.Is("topmost");
+            ShowOrActivate(form);
         }
 
-        private void ShowKeyboardSettings(AsusKeyboard kb)
+        private AsusKeyboardSettings CreateKeyboardSettings(AsusKeyboard keyboard)
         {
             AsusKeyboardSettings.RequestReopen = ShowKeyboardSettings;
-            keyboardSettings = new AsusKeyboardSettings(kb);
-            RegisterOwnedForm(keyboardSettings);
-            keyboardSettings.TopMost = AppConfig.Is("topmost");
-            keyboardSettings.Disposed += KeyboardSettings_Disposed;
-            if (IsFormAlive(keyboardSettings))
-            {
-                keyboardSettings.Show();
-            }
-            else
-            {
-                keyboardSettings = null;
-            }
+            return new AsusKeyboardSettings(keyboard);
         }
 
-        private void KeyboardSettings_Disposed(object? sender, EventArgs e)
+        private void ShowKeyboardSettings(AsusKeyboard keyboard)
         {
-            keyboardSettings = null;
-        }
+            if (peripheralSettings.TryGetValue(keyboard, out RForm? existing) && IsFormAlive(existing))
+            {
+                ShowOrActivate(existing);
+                return;
+            }
 
-        private void MouseSettings_Disposed(object? sender, EventArgs e)
-        {
-            mouseSettings = null;
+            AsusKeyboardSettings form = CreateKeyboardSettings(keyboard);
+            peripheralSettings[keyboard] = form;
+            RegisterOwnedForm(form);
+            form.TopMost = AppConfig.Is("topmost");
+            ShowOrActivate(form);
         }
 
         public void VisualiseAudio(double level)

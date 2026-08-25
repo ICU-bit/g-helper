@@ -144,9 +144,13 @@
   <data name="AlertUltimateTitle" xml:space="preserve">
     <value>立即重新啟動?</value>
   </data>
-  <data name="AllyController" xml:space="preserve">
-    <value>Ally控制器</value>
+  <data name="AmdOledSaver" xml:space="preserve">
+    <value>AMD OLED 省電</value>
   </data>
+  <data name="ArmouryCrate" xml:space="preserve">
+    <value>Armoury Crate 維護</value>
+  </data>
+
   <data name="AnimationDirection" xml:space="preserve">
     <value>動畫方向</value>
   </data>
@@ -1018,5 +1022,35 @@
   </data>
   <data name="Always" xml:space="preserve">
     <value>一律</value>
+  </data>
+  <data name="Home" xml:space="preserve">
+    <value>首頁</value>
+  </data>
+  <data name="Overview" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="Display" xml:space="preserve">
+    <value>顯示</value>
+  </data>
+  <data name="Devices" xml:space="preserve">
+    <value>裝置</value>
+  </data>
+  <data name="Application" xml:space="preserve">
+    <value>應用程式</value>
+  </data>
+  <data name="OverviewUnsupported" xml:space="preserve">
+    <value>此裝置不支援此功能。</value>
+  </data>
+  <data name="OverviewDisconnected" xml:space="preserve">
+    <value>連接支援的裝置後即可使用此功能。</value>
+  </data>
+  <data name="OverviewConditional" xml:space="preserve">
+    <value>目前顯示或 GPU 模式下無法使用。</value>
+  </data>
+  <data name="OverviewLoading" xml:space="preserve">
+    <value>仍在偵測裝置支援情況。</value>
+  </data>
+  <data name="OverviewError" xml:space="preserve">
+    <value>支援偵測失敗，請稍後再試。</value>
   </data>
 </root>

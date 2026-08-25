@@ -142,6 +142,24 @@ namespace GHelper.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to AMD OLED Power Saver.
+        /// </summary>
+        internal static string AmdOledSaver {
+            get {
+                return ResourceManager.GetString("AmdOledSaver", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Armoury Crate Maintenance.
+        /// </summary>
+        internal static string ArmouryCrate {
+            get {
+                return ResourceManager.GetString("ArmouryCrate", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Ally Controller.
         /// </summary>
         internal static string AllyController {
@@ -2450,6 +2468,60 @@ namespace GHelper.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Application.
+        /// </summary>
+        internal static string Application {
+            get {
+                return ResourceManager.GetString("Application", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Back.
+        /// </summary>
+        internal static string Back {
+            get {
+                return ResourceManager.GetString("Back", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Devices.
+        /// </summary>
+        internal static string Devices {
+            get {
+                return ResourceManager.GetString("Devices", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Display.
+        /// </summary>
+        internal static string Display {
+            get {
+                return ResourceManager.GetString("Display", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Home.
+        /// </summary>
+        internal static string Home {
+            get {
+                return ResourceManager.GetString("Home", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Settings.
+        /// </summary>
+        internal static string Overview {
+            get {
+                return ResourceManager.GetString("Overview", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Toggle Screen.
         /// </summary>
         internal static string ToggleScreen {
@@ -2734,6 +2806,51 @@ namespace GHelper.Properties {
         internal static string AnimationPattern {
             get {
                 return ResourceManager.GetString("AnimationPattern", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Feature support detection failed. Try again later.
+        /// </summary>
+        internal static string OverviewError {
+            get {
+                return ResourceManager.GetString("OverviewError", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Feature is unavailable in the current display or GPU mode.
+        /// </summary>
+        internal static string OverviewConditional {
+            get {
+                return ResourceManager.GetString("OverviewConditional", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Connect a supported device to use this feature.
+        /// </summary>
+        internal static string OverviewDisconnected {
+            get {
+                return ResourceManager.GetString("OverviewDisconnected", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Support detection is still in progress.
+        /// </summary>
+        internal static string OverviewLoading {
+            get {
+                return ResourceManager.GetString("OverviewLoading", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to This device does not support this feature.
+        /// </summary>
+        internal static string OverviewUnsupported {
+            get {
+                return ResourceManager.GetString("OverviewUnsupported", resourceCulture);
             }
         }
 
